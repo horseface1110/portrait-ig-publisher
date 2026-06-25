@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         IG 直向發文助手
 // @namespace    https://horseface1110.github.io/portrait-ig-publisher/
-// @version      1.0.4
+// @version      1.0.7
 // @description  在 Instagram 網頁版加入多圖、換行文案與自動發文流程。
 // @author       horseface1110
 // @match        https://www.instagram.com/*
@@ -30,6 +30,7 @@
       "建立貼文",
       "新增貼文",
       "新貼文",
+      "貼文",
     ],
     post: ["post", "貼文"],
   };
@@ -120,13 +121,19 @@
   }
 
   function findCreateControl() {
-    const labelledElement = [...document.querySelectorAll("[aria-label], [title]")].find(
+    const labelledElements = [...document.querySelectorAll("[aria-label], [title]")].filter(
       (element) => {
         if (!visible(element)) return false;
         const labels = attributeLabelsOf(element);
         return exactWords.createLabels.some((word) => labels.includes(word));
       },
     );
+    const labelPriority = ["新貼文", "建立貼文", "新增貼文", "create new post", "new post", "貼文"];
+    const labelledElement = labelPriority
+      .map((word) =>
+        labelledElements.find((element) => attributeLabelsOf(element).includes(word)),
+      )
+      .find(Boolean);
     if (!labelledElement) return null;
 
     const clickable = labelledElement.closest('button, a, [role="button"]');
@@ -163,7 +170,8 @@
       createLabels.includes("create new post") ||
       createLabels.includes("建立貼文") ||
       createLabels.includes("新增貼文") ||
-      createLabels.includes("新貼文");
+      createLabels.includes("新貼文") ||
+      createLabels.includes("貼文");
     if (explicitlyPost) return;
 
     const postOption = await waitFor(
@@ -206,6 +214,40 @@
       });
   }
 
+  function normalizedText(value) {
+    return String(value || "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\u00a0/g, " ")
+      .trim();
+  }
+
+  function fieldText(field) {
+    if (field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement) {
+      return field.value;
+    }
+    return field.innerText || field.textContent || "";
+  }
+
+  function findCaptionField() {
+    const scope = activeDialog();
+    const selectors = [
+      'textarea[aria-label*="caption" i]',
+      'textarea[placeholder*="caption" i]',
+      '[contenteditable="true"][aria-label*="caption" i]',
+      '[contenteditable="true"][aria-label*="說明"]',
+      '[contenteditable="true"][aria-label*="文字"]',
+      '[contenteditable="true"][role="textbox"]',
+      "textarea",
+    ];
+    for (const selector of selectors) {
+      const field = [...scope.querySelectorAll(selector)].find(
+        (element) => visible(element) && !element.closest(`#${ROOT_ID}`),
+      );
+      if (field) return field;
+    }
+    return null;
+  }
+
   function setFieldValue(field, value) {
     field.focus();
     if (field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement) {
@@ -225,7 +267,21 @@
       return;
     }
 
-    field.textContent = value;
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(field);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    field.dispatchEvent(
+      new InputEvent("beforeinput", {
+        bubbles: true,
+        cancelable: true,
+        inputType: "insertText",
+        data: value,
+      }),
+    );
+    const inserted = document.execCommand("insertText", false, value);
+    if (!inserted) field.textContent = value;
     field.dispatchEvent(
       new InputEvent("input", {
         bubbles: true,
@@ -233,6 +289,21 @@
         data: value,
       }),
     );
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+    field.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+  }
+
+  async function fillAndVerifyCaption(field, value) {
+    if (!value) return;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      setFieldValue(field, value);
+      await sleep(700);
+      if (normalizedText(fieldText(field)) === normalizedText(value)) return;
+      field.focus();
+      document.execCommand("selectAll", false);
+      document.execCommand("delete", false);
+    }
+    throw new Error("文案沒有成功寫入，已停止發佈以免送出空白貼文");
   }
 
   async function clickAndPause(button, message) {
@@ -265,7 +336,7 @@
       const fileInput = await waitFor(
         () =>
           [...activeDialog().querySelectorAll('input[type="file"]')].find(
-            (input) => !input.disabled,
+            (input) => !input.disabled && !input.closest(`#${ROOT_ID}`),
           ),
         "找不到照片選擇欄位",
       );
@@ -288,14 +359,10 @@
 
       setStatus("正在填入文案…");
       const captionField = await waitFor(
-        () =>
-          [...activeDialog().querySelectorAll(
-            'textarea[aria-label*="caption" i], textarea[placeholder*="caption" i], [contenteditable="true"][aria-label*="caption" i], [contenteditable="true"][role="textbox"], textarea',
-          )].find(visible),
+        findCaptionField,
         "找不到文案輸入欄位",
       );
-      setFieldValue(captionField, caption);
-      await sleep(500);
+      await fillAndVerifyCaption(captionField, caption);
 
       setStatus("即將發佈…");
       const shareButton = await waitFor(
