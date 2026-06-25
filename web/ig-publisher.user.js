@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         IG 直向發文助手
 // @namespace    https://horseface1110.github.io/portrait-ig-publisher/
-// @version      1.0.3
+// @version      1.0.4
 // @description  在 Instagram 網頁版加入多圖、換行文案與自動發文流程。
 // @author       horseface1110
 // @match        https://www.instagram.com/*
@@ -24,9 +24,7 @@
     share: ["share", "分享", "發佈", "發布"],
   };
   const exactWords = {
-    create: [
-      "create",
-      "建立",
+    createLabels: [
       "new post",
       "create new post",
       "建立貼文",
@@ -67,6 +65,13 @@
       element.getAttribute?.("title"),
       element.textContent,
     ]
+      .filter(Boolean)
+      .map((value) => value.replace(/\s+/g, " ").trim().toLowerCase())
+      .filter(Boolean);
+  }
+
+  function attributeLabelsOf(element) {
+    return [element.getAttribute?.("aria-label"), element.getAttribute?.("title")]
       .filter(Boolean)
       .map((value) => value.replace(/\s+/g, " ").trim().toLowerCase())
       .filter(Boolean);
@@ -114,6 +119,24 @@
     });
   }
 
+  function findCreateControl() {
+    const labelledElement = [...document.querySelectorAll("[aria-label], [title]")].find(
+      (element) => {
+        if (!visible(element)) return false;
+        const labels = attributeLabelsOf(element);
+        return exactWords.createLabels.some((word) => labels.includes(word));
+      },
+    );
+    if (!labelledElement) return null;
+
+    const clickable = labelledElement.closest('button, a, [role="button"]');
+    if (clickable && visible(clickable)) return clickable;
+
+    // Instagram sometimes puts aria-label directly on the SVG. Clicking the SVG
+    // bubbles to its React handler without guessing a username or nearby link.
+    return labelledElement;
+  }
+
   async function openPostComposer() {
     const directLink = findPostCreateLink();
     if (directLink) {
@@ -122,11 +145,16 @@
       return;
     }
 
-    const createButton = findExactButton(exactWords.create);
+    const createButton = findCreateControl();
     if (!createButton) {
       throw new Error("找不到 Instagram 的「建立貼文」入口");
     }
-    const createLabels = labelsOf(createButton);
+    const createLabels = [
+      ...attributeLabelsOf(createButton),
+      ...[...createButton.querySelectorAll?.("[aria-label], [title]") || []].flatMap(
+        attributeLabelsOf,
+      ),
+    ];
     createButton.click();
     await sleep(700);
 
@@ -134,7 +162,8 @@
       createLabels.includes("new post") ||
       createLabels.includes("create new post") ||
       createLabels.includes("建立貼文") ||
-      createLabels.includes("新增貼文");
+      createLabels.includes("新增貼文") ||
+      createLabels.includes("新貼文");
     if (explicitlyPost) return;
 
     const postOption = await waitFor(
