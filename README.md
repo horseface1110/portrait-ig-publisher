@@ -11,6 +11,15 @@ GitHub Pages 會發布 `web/`，接著可直接在 iPhone Safari 加入主畫面
 - 可安裝到 iPhone 主畫面並離線開啟
 - 照片不會上傳到伺服器
 
+## Safari 自動發文腳本
+
+`web/ig-publisher.user.js` 會直接執行於 `instagram.com`，沿用 Safari 現有登入
+狀態，自動選圖、前往下一步、填入保留換行的文案，並在使用者確認後按下分享。
+在 iPhone 上可搭配免費的
+[Userscripts](https://apps.apple.com/app/userscripts/id1463298887) Safari 擴充功能。
+
+這個流程依賴 Instagram 網頁介面，Instagram 改版後可能需要更新語意選擇器。
+
 ### 本機預覽
 
 ```powershell

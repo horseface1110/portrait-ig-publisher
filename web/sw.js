@@ -1,4 +1,4 @@
-const CACHE_NAME = "ig-publisher-pwa-v2";
+const CACHE_NAME = "ig-publisher-pwa-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const APP_SHELL = [
   "./manifest.webmanifest",
   "./icons/icon.svg",
   "./icons/icon-512.png",
+  "./ig-publisher.user.js",
 ];
 
 self.addEventListener("install", (event) => {

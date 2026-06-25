@@ -126,15 +126,16 @@ async function sharePhotos() {
   }
 
   const files = photos.map((photo) => photo.file);
-  const shareData = {
-    files,
-    text: caption.value,
-    title: "Instagram 貼文",
-  };
 
   if (navigator.canShare?.({ files }) && navigator.share) {
     try {
-      await navigator.share(shareData);
+      if (caption.value) {
+        await navigator.clipboard.writeText(caption.value);
+      }
+      await navigator.share({
+        files,
+        title: "分享照片到 Instagram",
+      });
       return;
     } catch (error) {
       if (error?.name === "AbortError") return;
@@ -180,7 +181,7 @@ photoInput.addEventListener("change", () => {
 
 instagramButton.addEventListener("click", async () => {
   if (caption.value) await copyCaption();
-  window.location.href = "https://www.instagram.com/";
+  window.location.href = "https://www.instagram.com/create/select/";
 });
 
 clearButton.addEventListener("click", () => {

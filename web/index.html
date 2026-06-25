@@ -43,6 +43,35 @@
         </div>
       </section>
 
+      <section class="card install-card">
+        <div class="section-heading">
+          <div>
+            <span class="step">NEW</span>
+            <h3>安裝 Safari 發文腳本</h3>
+          </div>
+          <span class="count-pill">同網域登入</span>
+        </div>
+        <p>
+          腳本會直接執行在 instagram.com，因此能使用你在 Safari 已登入的帳號，
+          並自動完成選圖、下一步、填入文案與分享。
+        </p>
+        <a
+          class="secondary-button app-store-link"
+          href="https://apps.apple.com/app/userscripts/id1463298887"
+        >
+          先免費安裝 Userscripts
+        </a>
+        <a class="primary-button install-link" href="./ig-publisher.user.js">
+          安裝 IG 直向發文助手
+        </a>
+        <ol class="install-steps">
+          <li>先在 iPhone 安裝支援 Safari 的 userscript 管理器。</li>
+          <li>回到這頁，點上方「安裝」並啟用腳本。</li>
+          <li>在 Safari 開啟 Instagram，允許擴充功能存取 instagram.com。</li>
+          <li>登入後點右下角「＋ 發文助手」。</li>
+        </ol>
+      </section>
+
       <section class="card media-card" aria-labelledby="mediaTitle">
         <div class="section-heading">
           <div>
@@ -95,15 +124,17 @@
         <span class="step">03</span>
         <div class="action-copy">
           <h3>送到 Instagram</h3>
-          <p id="shareHint">iPhone 會開啟分享選單，請選擇 Instagram。</p>
+          <p id="shareHint">先複製文案，再從 iPhone 分享選單選擇 Instagram。</p>
         </div>
         <button class="primary-button" id="shareButton" type="button">
-          <span>分享照片</span>
+          <span>複製文案並分享照片</span>
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 12h14m-5-5 5 5-5 5"></path>
           </svg>
         </button>
-        <button class="secondary-button" id="instagramButton" type="button">前往 Instagram</button>
+        <button class="secondary-button" id="instagramButton" type="button">
+          使用 Instagram 網頁版發文
+        </button>
       </section>
 
       <aside class="notice">
@@ -112,8 +143,8 @@
           <path d="M12 11v5m0-8h.01"></path>
         </svg>
         <p>
-          iOS 分享選單是否把多張照片直接交給 Instagram，會依 iOS 與 Instagram
-          版本而異。文案建議先按「複製」，進入 Instagram 後貼上。
+          PWA 無法命令 Instagram App 直接開啟新增貼文頁。請按上方彩色按鈕，
+          再從 iOS 分享選單選擇 Instagram；進入後長按貼上文案。
         </p>
       </aside>
 
