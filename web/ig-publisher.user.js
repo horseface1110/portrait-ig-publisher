@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         IG 直向發文助手
 // @namespace    https://horseface1110.github.io/portrait-ig-publisher/
-// @version      1.0.9
+// @version      1.1.0
 // @description  在 Instagram 網頁版加入多圖、換行文案與自動發文流程。
 // @author       horseface1110
 // @match        https://www.instagram.com/*
@@ -37,8 +37,101 @@
 
   let selectedFiles = [];
   let busy = false;
+  let pendingCaption = "";
+  let captionInjected = false;
 
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function isPublishRequest(url) {
+    const value = String(url || "");
+    return (
+      value.includes("/media/configure/") ||
+      value.includes("/media/configure_sidecar/") ||
+      value.includes("/media/configure_to_story/")
+    );
+  }
+
+  function replaceCaptionDeep(value, seen = new WeakSet()) {
+    if (!value || typeof value !== "object" || seen.has(value)) return false;
+    seen.add(value);
+    let changed = false;
+    for (const key of Object.keys(value)) {
+      if (key.toLowerCase() === "caption") {
+        value[key] = pendingCaption;
+        changed = true;
+      } else if (replaceCaptionDeep(value[key], seen)) {
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  function injectCaptionIntoBody(body) {
+    if (!pendingCaption) return body;
+
+    if (body instanceof FormData) {
+      body.set("caption", pendingCaption);
+      captionInjected = true;
+      return body;
+    }
+
+    if (body instanceof URLSearchParams) {
+      body.set("caption", pendingCaption);
+      captionInjected = true;
+      return body;
+    }
+
+    if (typeof body === "string") {
+      try {
+        const parsed = JSON.parse(body);
+        if (replaceCaptionDeep(parsed)) {
+          captionInjected = true;
+          return JSON.stringify(parsed);
+        }
+      } catch {}
+
+      try {
+        const params = new URLSearchParams(body);
+        if (params.has("caption") || body.includes("=")) {
+          params.set("caption", pendingCaption);
+          captionInjected = true;
+          return params.toString();
+        }
+      } catch {}
+    }
+
+    if (body && typeof body === "object" && !(body instanceof Blob)) {
+      if (replaceCaptionDeep(body)) captionInjected = true;
+    }
+    return body;
+  }
+
+  function installRequestInterceptor() {
+    if (window.__IGPP_REQUEST_INTERCEPTOR__) return;
+    window.__IGPP_REQUEST_INTERCEPTOR__ = true;
+
+    const nativeOpen = XMLHttpRequest.prototype.open;
+    const nativeSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+      this.__igppUrl = url;
+      return nativeOpen.call(this, method, url, ...rest);
+    };
+    XMLHttpRequest.prototype.send = function (body) {
+      const nextBody = isPublishRequest(this.__igppUrl)
+        ? injectCaptionIntoBody(body)
+        : body;
+      return nativeSend.call(this, nextBody);
+    };
+
+    const nativeFetch = window.fetch;
+    window.fetch = function (input, init = {}) {
+      const url = typeof input === "string" ? input : input?.url;
+      if (isPublishRequest(url) && init?.body) {
+        init = { ...init, body: injectCaptionIntoBody(init.body) };
+      }
+      return nativeFetch.call(this, input, init);
+    };
+  }
 
   function visible(element) {
     if (!element) return false;
@@ -365,6 +458,16 @@
     }
   }
 
+  async function tryVisibleCaption(field, value) {
+    if (!value || !field) return false;
+    try {
+      await fillAndVerifyCaption(field, value);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async function clickAndPause(button, message) {
     if (!button) throw new Error(message);
     button.click();
@@ -421,7 +524,14 @@
         findCaptionField,
         "找不到文案輸入欄位",
       );
-      await fillAndVerifyCaption(captionField, caption);
+      const visibleCaptionReady = await tryVisibleCaption(captionField, caption);
+      pendingCaption = caption;
+      captionInjected = false;
+      setStatus(
+        visibleCaptionReady
+          ? "文案已填入，正在準備發佈…"
+          : "編輯器拒絕自動輸入，將在發文請求中加入文案…",
+      );
 
       setStatus("即將發佈…");
       const shareButton = await waitFor(
@@ -429,7 +539,17 @@
         "找不到 Instagram 的「分享」按鈕",
       );
       shareButton.click();
-      setStatus("已送出發佈。請等待 Instagram 完成上傳。", "success");
+      await sleep(1400);
+      setStatus(
+        visibleCaptionReady || captionInjected
+          ? "已送出發佈，文案已加入。請等待 Instagram 完成上傳。"
+          : "已送出，但未偵測到文案注入；請先檢查貼文結果。",
+        visibleCaptionReady || captionInjected ? "success" : "error",
+      );
+      setTimeout(() => {
+        pendingCaption = "";
+        captionInjected = false;
+      }, 10000);
       localStorage.setItem("igpp-caption", caption);
     } catch (error) {
       console.error("[IG 發文助手]", error);
@@ -579,6 +699,7 @@
   }
 
   installUI();
+  installRequestInterceptor();
   new MutationObserver(installUI).observe(document.documentElement, {
     childList: true,
     subtree: true,
