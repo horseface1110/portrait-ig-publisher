@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         IG 直向發文助手
 // @namespace    https://horseface1110.github.io/portrait-ig-publisher/
-// @version      1.0.2
+// @version      1.0.3
 // @description  在 Instagram 網頁版加入多圖、換行文案與自動發文流程。
 // @author       horseface1110
 // @match        https://www.instagram.com/*
@@ -24,7 +24,15 @@
     share: ["share", "分享", "發佈", "發布"],
   };
   const exactWords = {
-    create: ["create", "建立", "new post", "create new post", "建立貼文", "新增貼文"],
+    create: [
+      "create",
+      "建立",
+      "new post",
+      "create new post",
+      "建立貼文",
+      "新增貼文",
+      "新貼文",
+    ],
     post: ["post", "貼文"],
   };
 
@@ -76,11 +84,26 @@
   }
 
   function findExactButton(candidates, scope = document) {
-    return [...scope.querySelectorAll('button, a, [role="button"]')].find((element) => {
+    const controls = [...scope.querySelectorAll('button, a, [role="button"]')];
+    const directMatch = controls.find((element) => {
       if (!visible(element)) return false;
       const labels = labelsOf(element);
       return candidates.some((word) => labels.includes(word));
     });
+    if (directMatch) return directMatch;
+
+    const labelledChildren = [...scope.querySelectorAll("[aria-label], [title]")];
+    const labelledMatch = labelledChildren.find((element) => {
+      if (!visible(element)) return false;
+      const labels = labelsOf(element);
+      return candidates.some((word) => labels.includes(word));
+    });
+    if (!labelledMatch) return null;
+
+    return (
+      labelledMatch.closest('button, a, [role="button"], [tabindex]') ||
+      labelledMatch
+    );
   }
 
   function findPostCreateLink() {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "ig-publisher-pwa-v5";
+const CACHE_NAME = "ig-publisher-pwa-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
