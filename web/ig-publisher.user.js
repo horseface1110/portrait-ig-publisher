@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         IG 直向發文助手
 // @namespace    https://horseface1110.github.io/portrait-ig-publisher/
-// @version      1.0.8
+// @version      1.0.9
 // @description  在 Instagram 網頁版加入多圖、換行文案與自動發文流程。
 // @author       horseface1110
 // @match        https://www.instagram.com/*
@@ -272,6 +272,19 @@
     });
   }
 
+  function pasteIntoEditable(field, value) {
+    field.focus();
+    clearEditable(field);
+    const clipboardData = new DataTransfer();
+    clipboardData.setData("text/plain", value);
+    const pasteEvent = new ClipboardEvent("paste", {
+      bubbles: true,
+      cancelable: true,
+      clipboardData,
+    });
+    return !field.dispatchEvent(pasteEvent);
+  }
+
   function setFieldValue(field, value) {
     field.focus();
     if (field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement) {
@@ -325,8 +338,12 @@
 
   async function fillAndVerifyCaption(field, value) {
     if (!value) return;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      setFieldValue(field, value);
+    const strategies = [
+      () => pasteIntoEditable(field, value),
+      () => setFieldValue(field, value),
+    ];
+    for (const strategy of strategies) {
+      strategy();
       await sleep(1000);
       const fieldMatches = normalizedText(fieldText(field)) === normalizedText(value);
       const count = instagramCaptionCount();
@@ -334,7 +351,18 @@
       if (fieldMatches && counterMatches) return;
       clearEditable(field);
     }
-    throw new Error("文案沒有成功寫入，已停止發佈以免送出空白貼文");
+    try {
+      await navigator.clipboard.writeText(value);
+      const panel = document.querySelector(`#${ROOT_ID} .igpp-panel`);
+      const launcher = document.querySelector(`#${ROOT_ID} .igpp-launcher`);
+      if (panel) panel.dataset.open = "false";
+      if (launcher) launcher.hidden = false;
+      field.focus();
+      throw new Error("Instagram 阻擋自動輸入；文案已複製，請在右側欄位長按貼上後手動分享");
+    } catch (error) {
+      if (error.message?.startsWith("Instagram 阻擋")) throw error;
+      throw new Error("文案沒有成功寫入，已停止發佈以免送出空白貼文");
+    }
   }
 
   async function clickAndPause(button, message) {
