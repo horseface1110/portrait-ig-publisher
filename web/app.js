@@ -144,7 +144,7 @@ async function sharePhotos() {
   await copyCaption();
   showToast("此瀏覽器無法分享多圖，已複製文案");
   setTimeout(() => {
-    window.location.href = "instagram://";
+    window.location.href = "https://www.instagram.com/";
   }, 450);
 }
 
@@ -180,10 +180,7 @@ photoInput.addEventListener("change", () => {
 
 instagramButton.addEventListener("click", async () => {
   if (caption.value) await copyCaption();
-  window.location.href = "instagram://";
-  setTimeout(() => {
-    window.location.href = "https://www.instagram.com/";
-  }, 900);
+  window.location.href = "https://www.instagram.com/";
 });
 
 clearButton.addEventListener("click", () => {
