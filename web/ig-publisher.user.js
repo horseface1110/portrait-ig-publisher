@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         IG 直向發文助手
 // @namespace    https://horseface1110.github.io/portrait-ig-publisher/
-// @version      1.0.1
+// @version      1.0.2
 // @description  在 Instagram 網頁版加入多圖、換行文案與自動發文流程。
 // @author       horseface1110
 // @match        https://www.instagram.com/*
 // @match        https://instagram.com/*
 // @grant        none
 // @run-at       document-idle
-// @updateURL    https://horseface1110.github.io/portrait-ig-publisher/ig-publisher.user.js
+// @updateURL    https://horseface1110.github.io/portrait-ig-publisher/ig-publisher.meta.js
 // @downloadURL  https://horseface1110.github.io/portrait-ig-publisher/ig-publisher.user.js
 // ==/UserScript==
 
@@ -20,9 +20,12 @@
 
   const ROOT_ID = "igpp-root";
   const words = {
-    create: ["create", "new post", "建立", "新增", "發文", "建立貼文"],
     next: ["next", "下一步"],
     share: ["share", "分享", "發佈", "發布"],
+  };
+  const exactWords = {
+    create: ["create", "建立", "new post", "create new post", "建立貼文", "新增貼文"],
+    post: ["post", "貼文"],
   };
 
   let selectedFiles = [];
@@ -50,6 +53,17 @@
       .toLowerCase();
   }
 
+  function labelsOf(element) {
+    return [
+      element.getAttribute?.("aria-label"),
+      element.getAttribute?.("title"),
+      element.textContent,
+    ]
+      .filter(Boolean)
+      .map((value) => value.replace(/\s+/g, " ").trim().toLowerCase())
+      .filter(Boolean);
+  }
+
   function matchesWords(element, candidates) {
     const label = labelOf(element);
     return candidates.some((word) => label === word || label.includes(word));
@@ -59,6 +73,54 @@
     return [...scope.querySelectorAll('button, a, [role="button"]')].find(
       (element) => visible(element) && matchesWords(element, candidates),
     );
+  }
+
+  function findExactButton(candidates, scope = document) {
+    return [...scope.querySelectorAll('button, a, [role="button"]')].find((element) => {
+      if (!visible(element)) return false;
+      const labels = labelsOf(element);
+      return candidates.some((word) => labels.includes(word));
+    });
+  }
+
+  function findPostCreateLink() {
+    return [...document.querySelectorAll('a[href]')].find((element) => {
+      if (!visible(element)) return false;
+      const href = element.getAttribute("href") || "";
+      return href === "/create/select/" || href.startsWith("/create/select?");
+    });
+  }
+
+  async function openPostComposer() {
+    const directLink = findPostCreateLink();
+    if (directLink) {
+      directLink.click();
+      await sleep(700);
+      return;
+    }
+
+    const createButton = findExactButton(exactWords.create);
+    if (!createButton) {
+      throw new Error("找不到 Instagram 的「建立貼文」入口");
+    }
+    const createLabels = labelsOf(createButton);
+    createButton.click();
+    await sleep(700);
+
+    const explicitlyPost =
+      createLabels.includes("new post") ||
+      createLabels.includes("create new post") ||
+      createLabels.includes("建立貼文") ||
+      createLabels.includes("新增貼文");
+    if (explicitlyPost) return;
+
+    const postOption = await waitFor(
+      () => findExactButton(exactWords.post),
+      "Instagram 顯示了建立選單，但找不到「貼文」選項",
+      4000,
+    );
+    postOption.click();
+    await sleep(700);
   }
 
   function activeDialog() {
@@ -145,11 +207,7 @@
 
     try {
       setStatus("正在開啟建立貼文…");
-      const createButton = await waitFor(
-        () => findButton(words.create),
-        "找不到 Instagram 的「建立」按鈕",
-      );
-      await clickAndPause(createButton, "無法開啟建立貼文");
+      await openPostComposer();
 
       setStatus("正在加入照片…");
       const fileInput = await waitFor(
@@ -217,15 +275,22 @@
       }
       #${ROOT_ID} button, #${ROOT_ID} input, #${ROOT_ID} textarea { font: inherit; }
       #${ROOT_ID} .igpp-launcher {
-        min-height: 52px;
-        padding: 0 18px;
+        width: 40px;
+        height: 40px;
+        min-height: 40px;
+        padding: 0;
         border: 0;
-        border-radius: 18px;
+        border-radius: 50%;
         color: #fff;
         background: linear-gradient(135deg, #ff8248, #ff296e 55%, #9838d5);
-        box-shadow: 0 14px 38px rgba(0,0,0,.35);
+        box-shadow: 0 8px 22px rgba(0,0,0,.28);
+        opacity: .58;
+        font-size: 24px;
+        line-height: 1;
         font-weight: 800;
       }
+      #${ROOT_ID} .igpp-launcher:active { opacity: 1; transform: scale(.94); }
+      #${ROOT_ID} .igpp-launcher[hidden] { display: none; }
       #${ROOT_ID} .igpp-panel {
         display: none;
         position: fixed;
@@ -288,7 +353,7 @@
     const root = document.createElement("div");
     root.id = ROOT_ID;
     root.innerHTML = `
-      <button class="igpp-launcher" type="button">＋ 發文助手</button>
+      <button class="igpp-launcher" type="button" aria-label="開啟發文助手" title="發文助手">＋</button>
       <section class="igpp-panel" data-open="false">
         <div class="igpp-head">
           <h2>IG 直向發文助手</h2>
@@ -311,11 +376,16 @@
     const count = root.querySelector(".igpp-count");
     caption.value = localStorage.getItem("igpp-caption") || "";
 
-    root.querySelector(".igpp-launcher").addEventListener("click", () => {
+    const launcher = root.querySelector(".igpp-launcher");
+    launcher.addEventListener("click", () => {
       panel.dataset.open = "true";
+      launcher.hidden = true;
     });
     root.querySelector(".igpp-close").addEventListener("click", () => {
-      if (!busy) panel.dataset.open = "false";
+      if (!busy) {
+        panel.dataset.open = "false";
+        launcher.hidden = false;
+      }
     });
     root.querySelector(".igpp-file").addEventListener("change", (event) => {
       selectedFiles = [...event.target.files].slice(0, 10);
