@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         IG 直向發文助手
 // @namespace    https://horseface1110.github.io/portrait-ig-publisher/
-// @version      1.0.7
+// @version      1.0.8
 // @description  在 Instagram 網頁版加入多圖、換行文案與自動發文流程。
 // @author       horseface1110
 // @match        https://www.instagram.com/*
@@ -231,6 +231,8 @@
   function findCaptionField() {
     const scope = activeDialog();
     const selectors = [
+      '[data-lexical-editor="true"][contenteditable="true"][role="textbox"]',
+      '[data-lexical-editor="true"][contenteditable="true"][aria-placeholder]',
       'textarea[aria-label*="caption" i]',
       'textarea[placeholder*="caption" i]',
       '[contenteditable="true"][aria-label*="caption" i]',
@@ -246,6 +248,28 @@
       if (field) return field;
     }
     return null;
+  }
+
+  function clearEditable(field) {
+    field.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(field);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.execCommand("delete", false);
+  }
+
+  function insertEditableText(field, value) {
+    const lines = value.replace(/\r\n/g, "\n").split("\n");
+    lines.forEach((line, index) => {
+      if (line) {
+        document.execCommand("insertText", false, line);
+      }
+      if (index < lines.length - 1) {
+        document.execCommand("insertLineBreak", false);
+      }
+    });
   }
 
   function setFieldValue(field, value) {
@@ -267,11 +291,7 @@
       return;
     }
 
-    const selection = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(field);
-    selection.removeAllRanges();
-    selection.addRange(range);
+    clearEditable(field);
     field.dispatchEvent(
       new InputEvent("beforeinput", {
         bubbles: true,
@@ -280,8 +300,7 @@
         data: value,
       }),
     );
-    const inserted = document.execCommand("insertText", false, value);
-    if (!inserted) field.textContent = value;
+    insertEditableText(field, value);
     field.dispatchEvent(
       new InputEvent("input", {
         bubbles: true,
@@ -290,18 +309,30 @@
       }),
     );
     field.dispatchEvent(new Event("change", { bubbles: true }));
-    field.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    field.blur();
+  }
+
+  function instagramCaptionCount() {
+    const scope = activeDialog();
+    const counters = [...scope.querySelectorAll("span, div")].filter((element) => {
+      if (!visible(element) || element.closest(`#${ROOT_ID}`)) return false;
+      return /^\s*\d+\s*\/\s*2200\s*$/.test(element.textContent || "");
+    });
+    if (!counters.length) return null;
+    const match = (counters[counters.length - 1].textContent || "").match(/(\d+)\s*\/\s*2200/);
+    return match ? Number(match[1]) : null;
   }
 
   async function fillAndVerifyCaption(field, value) {
     if (!value) return;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       setFieldValue(field, value);
-      await sleep(700);
-      if (normalizedText(fieldText(field)) === normalizedText(value)) return;
-      field.focus();
-      document.execCommand("selectAll", false);
-      document.execCommand("delete", false);
+      await sleep(1000);
+      const fieldMatches = normalizedText(fieldText(field)) === normalizedText(value);
+      const count = instagramCaptionCount();
+      const counterMatches = count === null || count > 0;
+      if (fieldMatches && counterMatches) return;
+      clearEditable(field);
     }
     throw new Error("文案沒有成功寫入，已停止發佈以免送出空白貼文");
   }
