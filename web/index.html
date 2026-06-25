@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0b0d" />
+    <meta name="description" content="在 iPhone 上整理多張照片與多行文案，再分享到 Instagram。" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="IG 發文助手" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/icon-512.png" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>IG 發文助手</title>
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span></span>
+          </div>
+          <div>
+            <p class="eyebrow">PORTRAIT PUBLISHER</p>
+            <h1>IG 發文助手</h1>
+          </div>
+        </div>
+        <button class="icon-button" id="helpButton" type="button" aria-label="使用說明">?</button>
+      </header>
+
+      <section class="hero">
+        <div>
+          <p class="hero-kicker">不用再把手機轉來轉去</p>
+          <h2>照片、順序、換行<br />一次整理好。</h2>
+        </div>
+        <div class="draft-state">
+          <span class="status-dot"></span>
+          <span id="saveState">草稿已保存</span>
+        </div>
+      </section>
+
+      <section class="card media-card" aria-labelledby="mediaTitle">
+        <div class="section-heading">
+          <div>
+            <span class="step">01</span>
+            <h3 id="mediaTitle">選擇照片</h3>
+          </div>
+          <span class="count-pill" id="photoCount">0 / 10</span>
+        </div>
+
+        <label class="upload-zone" for="photoInput">
+          <input id="photoInput" type="file" accept="image/*" multiple />
+          <span class="upload-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
+            </svg>
+          </span>
+          <strong>從相簿選取多張照片</strong>
+          <small>最多 10 張，點選縮圖可調整順序</small>
+        </label>
+
+        <div class="photo-grid" id="photoGrid" aria-live="polite"></div>
+      </section>
+
+      <section class="card caption-card" aria-labelledby="captionTitle">
+        <div class="section-heading">
+          <div>
+            <span class="step">02</span>
+            <h3 id="captionTitle">撰寫文案</h3>
+          </div>
+          <span class="count-pill"><span id="characterCount">0</span> 字</span>
+        </div>
+
+        <div class="caption-wrap">
+          <textarea
+            id="caption"
+            maxlength="2200"
+            placeholder="寫下想說的話…&#10;&#10;這裡的換行會完整保留。"
+          ></textarea>
+          <button class="mini-button" id="copyButton" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="8" y="8" width="11" height="11" rx="2"></rect>
+              <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path>
+            </svg>
+            複製
+          </button>
+        </div>
+      </section>
+
+      <section class="card action-card">
+        <span class="step">03</span>
+        <div class="action-copy">
+          <h3>送到 Instagram</h3>
+          <p id="shareHint">iPhone 會開啟分享選單，請選擇 Instagram。</p>
+        </div>
+        <button class="primary-button" id="shareButton" type="button">
+          <span>分享照片</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h14m-5-5 5 5-5 5"></path>
+          </svg>
+        </button>
+        <button class="secondary-button" id="instagramButton" type="button">開啟 Instagram</button>
+      </section>
+
+      <aside class="notice">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M12 11v5m0-8h.01"></path>
+        </svg>
+        <p>
+          iOS 分享選單是否把多張照片直接交給 Instagram，會依 iOS 與 Instagram
+          版本而異。文案建議先按「複製」，進入 Instagram 後貼上。
+        </p>
+      </aside>
+
+      <footer>
+        <span>所有照片只留在你的手機上</span>
+        <span class="footer-dot"></span>
+        <button id="clearButton" type="button">清除草稿</button>
+      </footer>
+    </main>
+
+    <dialog id="helpDialog">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">QUICK START</p>
+          <h2>加入 iPhone 主畫面</h2>
+        </div>
+        <button class="icon-button" id="closeHelpButton" type="button" aria-label="關閉">×</button>
+      </div>
+      <ol>
+        <li><span>1</span>用 Safari 開啟這個網頁。</li>
+        <li><span>2</span>點底部的「分享」按鈕。</li>
+        <li><span>3</span>選擇「加入主畫面」。</li>
+        <li><span>4</span>之後從主畫面開啟，就像一般 App。</li>
+      </ol>
+      <button class="primary-button" id="dialogDoneButton" type="button">知道了</button>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "IG Publisher",
+  "version": "0.1.0",
+  "identifier": "com.igpublisher.app",
+  "build": {
+    "frontendDist": "https://www.instagram.com/"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "IG Publisher",
+        "url": "https://www.instagram.com/",
+        "width": 430,
+        "height": 932,
+        "minWidth": 320,
+        "minHeight": 568,
+        "resizable": true,
+        "fullscreen": false,
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "SocialNetworking",
+    "shortDescription": "Portrait-first Instagram publishing companion",
+    "longDescription": "A portrait-first Instagram web wrapper with desktop posting mode and a multiline caption editor."
+  }
+}
